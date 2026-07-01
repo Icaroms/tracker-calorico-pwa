@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.vercel/
+*.local
+.DS_Store
+npm-debug.log*
+
+# Relatório gerado pelo script de importação (artefato de build, não fonte)
+scripts/data/taco/coverage.report.json
