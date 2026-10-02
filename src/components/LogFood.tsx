@@ -7,6 +7,7 @@ import RecipeBuilder from './RecipeBuilder';
 import BarcodeScanner from './BarcodeScanner';
 import NutrientDetail from './NutrientDetail';
 import ExerciseLog from './ExerciseLog';
+import FoodCamera from './FoodCamera';
 
 import { expandSearchTerms } from '../lib/searchSynonyms';
 import { useTheme } from '../theme';
@@ -20,6 +21,7 @@ const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').t
 export default function LogFood() {
   const C = useTheme();
   const inputStyle = { background: C.chipBg, color: C.ink };
+  const geminiApiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('geminiApiKey') ?? undefined : undefined;
   const foods = useSearchableFoods();
   const frequent = useFrequentFoods(8);
   const { rows, totalKcal, remove, update } = useTodayEntries();
@@ -77,6 +79,9 @@ export default function LogFood() {
 
       {/* Escanear código de barras */}
       <BarcodeScanner />
+
+      {/* Reconhecer alimento por foto */}
+      <FoodCamera geminiApiKey={geminiApiKey} />
 
       {/* Cadastrar alimento próprio */}
       <CustomFoodForm />
