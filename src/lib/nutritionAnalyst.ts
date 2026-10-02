@@ -39,12 +39,10 @@ export function analyzeDaily(input: AnalysisInput): DailyAnalysis {
     insights.push({ level: 'good', message: 'Saldo calórico bem ajustado à meta.' });
   }
 
-  // Limites estourados (ex.: gordura saturada)
-  for (const p of maxs) {
-    if (p.status === 'over') {
-      insights.push({ level: 'alert', key: p.key, message: `Limite de ${label(p.key)} ultrapassado (${p.consumed}/${p.target}${p.unit}).` });
-    }
-  }
+  // Limites (gordura saturada, sódio) agora ficam na seção "Evitar hoje"
+  // (avoidRules.ts avoidByLimit) — cobre tanto perto-do-teto quanto
+  // já-estourado, com exemplos concretos de alimento. Evita duplicar aviso
+  // aqui.
 
   // Lacunas (do mais atrasado pro menos) — só nutrientes com dado real hoje.
   // hasData=false = base de alimentos não mede esse nutriente pro que foi

@@ -12,7 +12,8 @@ import {
   db, addWater as dbAddWater, latestWeightLog, latestPlanSnapshot,
   entriesForDay, getDayMeta, weightHistory, logFood, removeEntry, updateEntry, addWeightLog,
   updateWeightLog, deleteWeightLog,
-  type WeightLog, type Goal, type MealSlot, type Profile,
+  exercisesForDay, logExercise, removeExerciseEntry, updateExerciseEntry,
+  type WeightLog, type Goal, type MealSlot, type Profile, type ExerciseEntry,
 } from '../lib/db';
 import {
   buildPlan, needsRecalculation, type BodyProfile, type NutritionPlan,
@@ -24,6 +25,8 @@ import {
 import { foodById, recommendFasting, FOOD_BASE, type FoodItem, type LactoseLevel } from '../lib/referenceData';
 import { recipeAsFood, type Recipe, type RecipeIngredient } from '../lib/recipes';
 import { suggestMeals, type MealOption } from '../lib/mealSuggester';
+import { exerciseById, kcalBurned, EXERCISE_BASE } from '../lib/exerciseEngine';
+import { type DayAgg, type WeightPoint as WeeklyWeightPoint } from '../lib/weeklyAnalyst';
 
 const today = (): string => new Date().toISOString().slice(0, 10);
 
@@ -46,7 +49,7 @@ export function useFoodResolver(): (id: string) => FoodItem | undefined {
 }
 
 // ── Metas como mapa tipado p/ o agregador ───────────────────────────────────
-function goalsToMap(goals: Goal[]): Partial<Record<NutrientKey, GoalDef>> {
+export function goalsToMap(goals: Goal[]): Partial<Record<NutrientKey, GoalDef>> {
   const out: Partial<Record<NutrientKey, GoalDef>> = {};
   for (const g of goals) {
     out[g.key as NutrientKey] = { target: g.target, unit: g.unit, direction: g.direction ?? 'min' };
@@ -174,7 +177,7 @@ export function useFrequentFoods(limit = 8): FrequentFood[] {
   }, [entries, resolve, limit]);
 }
 
-export interface EntryRow { id: number; meal: MealSlot; grams: number; name: string; kcal: number; }
+export interface EntryRow { id: number; meal: MealSlot; grams: number; name: string; kcal: number; createdAt: string; }
 
 export function useTodayEntries(day = today()) {
   const entries = useLiveQuery(() => entriesForDay(day), [day], []);
@@ -183,7 +186,7 @@ export function useTodayEntries(day = today()) {
     () => (entries ?? []).map((e) => {
       const food = resolve(e.foodId);
       const kcal = food ? Math.round(((food.per100g.kcal ?? 0) * e.grams) / 100) : 0;
-      return { id: e.id!, meal: e.meal, grams: e.grams, name: food?.name ?? e.foodId, kcal };
+      return { id: e.id!, meal: e.meal, grams: e.grams, name: food?.name ?? e.foodId, kcal, createdAt: e.createdAt };
     }),
     [entries, resolve],
   );
@@ -194,6 +197,43 @@ export function useTodayEntries(day = today()) {
     update: (id: number, grams: number) => updateEntry(id, { grams }),
   };
 }
+
+// ── Exercícios do dia ────────────────────────────────────────────────────────
+export interface ExerciseRow { id: number; exerciseName: string; minutes: number; kcalBurned: number; }
+
+export function useTodayExercise(day = today()) {
+  const entries = useLiveQuery(() => exercisesForDay(day), [day], []);
+  const rows = useMemo<ExerciseRow[]>(
+    () => (entries ?? []).map((e) => ({
+      id: e.id!, minutes: e.minutes, kcalBurned: e.kcalBurned,
+      exerciseName: exerciseById(e.exerciseId)?.name ?? e.exerciseId,
+    })),
+    [entries],
+  );
+  const totalKcalBurned = rows.reduce((s, r) => s + r.kcalBurned, 0);
+  return {
+    rows, totalKcalBurned,
+    remove: (id: number) => removeExerciseEntry(id),
+    update: (id: number, minutes: number) => updateExerciseEntry(id, { minutes }),
+  };
+}
+
+/** Registra um exercício — calcula e GRAVA o kcal gasto usando o peso atual. */
+export function useLogExercise() {
+  const daily = useDailyPlan();
+  return useCallback(
+    (exerciseId: string, minutes: number) => {
+      const ex = exerciseById(exerciseId);
+      const weightKg = daily?.weightKg;
+      if (!ex || !weightKg || minutes <= 0) return;
+      return logExercise({ exerciseId, minutes, kcalBurned: kcalBurned(ex.met, weightKg, minutes) });
+    },
+    [daily?.weightKg],
+  );
+}
+
+export { EXERCISE_BASE };
+export type { ExerciseEntry };
 
 // ── Pesos: listar, editar, excluir ──────────────────────────────────────────
 export function useWeightLogs() {
@@ -290,6 +330,66 @@ export function useHistory(rangeDays = 30) {
   return { days, weight, since };
 }
 
+// ── Agregação dos últimos N dias pro relatório semanal ──────────────────────
+function lastNDays(n: number): string[] {
+  const out: string[] = [];
+  const d = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const day = new Date(d);
+    day.setDate(d.getDate() - i);
+    out.push(day.toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+/**
+ * Agrega os últimos `n` dias (padrão 7) em `DayAgg[]` pra alimentar
+ * `analyzeWeek()`. Usa a meta calórica ATUAL pra todos os dias (não
+ * reconstrói o histórico de metas passadas — se o plano mudou no meio da
+ * semana, a aderência calórica de dias antigos fica uma aproximação, não
+ * exata; documentado aqui em vez de fingir precisão que não existe).
+ */
+export function useWeeklyRaw(n = 7) {
+  const days = useMemo(() => lastNDays(n), [n]);
+  const goals = useGoals();
+  const resolve = useFoodResolver();
+  const daily = useDailyPlan();
+
+  const entriesByDay = useLiveQuery(() => Promise.all(days.map((d) => entriesForDay(d))), [days]);
+  const exercisesByDay = useLiveQuery(() => Promise.all(days.map((d) => exercisesForDay(d))), [days]);
+  const weightLogs = useLiveQuery(
+    () => db.weightLogs.where('day').aboveOrEqual(days[0]).toArray(),
+    [days],
+    [],
+  );
+
+  const dayAggs: DayAgg[] = useMemo(() => {
+    if (!entriesByDay || !exercisesByDay) return [];
+    return days.map((day, i) => {
+      const entries = entriesByDay[i] ?? [];
+      const { totals, coveredKeys } = sumEntries(entries, resolve);
+      const exerciseKcal = (exercisesByDay[i] ?? []).reduce((s, e) => s + e.kcalBurned, 0);
+      return {
+        day, totals, coveredKeys, hasEntries: entries.length > 0,
+        kcalTarget: daily?.plan.calories.target ?? 2000,
+        exerciseKcal,
+      };
+    });
+  }, [days, entriesByDay, exercisesByDay, resolve, daily]);
+
+  const weightPoints: WeeklyWeightPoint[] = useMemo(
+    () => (weightLogs ?? []).map((w) => ({ day: w.day, weightKg: w.weightKg })),
+    [weightLogs],
+  );
+
+  return {
+    ready: !!entriesByDay && !!exercisesByDay,
+    dayAggs,
+    goalsMap: goalsToMap(goals),
+    weightPoints,
+  };
+}
+
 // ── Agregador final: tudo que o Dashboard precisa ───────────────────────────
 export interface DashboardData {
   ready: boolean;
@@ -304,6 +404,8 @@ export interface DashboardData {
   weight: WeightPoint[];
   suggestions: MealOption[];
   fasting: { advice: string; reason: string };
+  /** kcal gasto em exercício hoje — soma de volta à meta do dia (ver BalanceRing). */
+  exerciseKcalBurned: number;
 }
 
 export function useDashboardData(opts?: { pangastrite?: boolean; maxLactose?: 'none' | 'low' | 'moderate' | 'high' }): DashboardData {
@@ -311,8 +413,14 @@ export function useDashboardData(opts?: { pangastrite?: boolean; maxLactose?: 'n
   const totals = useDayTotals();
   const { waterMl, addWater } = useWater();
   const weight = useWeightHistory();
+  const { totalKcalBurned: exerciseKcalBurned } = useTodayExercise();
 
-  const remainingKcal = Math.max((daily?.plan.calories.target ?? 0) - (totals?.kcalConsumed ?? 0), 0);
+  // Meta efetiva do dia = meta base + o que já foi gasto em exercício —
+  // mesmo modelo mental da maioria dos apps de fitness ("treinou, ganhou
+  // espaço"). Nível de atividade do onboarding já entra no TDEE base; isso
+  // aqui é o extra além do padrão assumido, não uma duplicata.
+  const effectiveTarget = (daily?.plan.calories.target ?? 0) + exerciseKcalBurned;
+  const remainingKcal = Math.max(effectiveTarget - (totals?.kcalConsumed ?? 0), 0);
   const suggestions = useMemo(
     () => suggestMeals({ remainingKcal, gaps: totals?.gaps ?? [], maxLactose: opts?.maxLactose ?? 'low' }),
     [remainingKcal, totals?.gaps, opts?.maxLactose],
@@ -332,5 +440,6 @@ export function useDashboardData(opts?: { pangastrite?: boolean; maxLactose?: 'n
     weight,
     suggestions,
     fasting,
+    exerciseKcalBurned,
   };
 }
