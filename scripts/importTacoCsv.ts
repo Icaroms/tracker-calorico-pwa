@@ -73,6 +73,7 @@ const MAIN_COLUMNS: Partial<Record<NutrientKey, string>> = {
   magnesium: 'Magnésio..mg.',
   iron: 'Ferro..mg.',
   potassium: 'Potássio..mg.',
+  sodium: 'Sódio..mg.',
   vitaminA: 'RAE..mcg.', // retinol activity equivalent — mais próximo do padrão atual (RDA em RAE)
   vitaminC: 'Vitamina.C..mg.',
   vitaminB1: 'Tiamina..mg.',
@@ -92,6 +93,62 @@ const OMEGA3_COLUMNS = ['X18.3.n.3..g.', 'X20.5..g.', 'X22.6..g.']; // ALA + EPA
 // conhecidos (ex.: parmesão = 'low') sem tocar aqui.
 function lactoseHeuristic(categoria: string): 'none' | 'high' {
   return categoria.trim() === 'Leite e derivados' ? 'high' : 'none';
+}
+
+type Portion = { label: string; grams: number };
+
+/**
+ * Porções por unidade/fatia — a TACO só dá por 100g, isso aqui é curadoria
+ * adicional (pesos médios conhecidos de porção caseira brasileira), não
+ * dado medido pela TACO. Só cobre categorias onde o peso de "1 unidade" é
+ * razoavelmente padronizado (pão fatiado, queijo fatiado, ovo, fruta
+ * inteira comum) — o resto fica sem porção pré-definida (cai no chip
+ * genérico 100g/150g) em vez de inventar um "1 unidade" sem sentido pra
+ * algo como "carne moída crua".
+ */
+function derivePortions(name: string, categoria: string): Portion[] | undefined {
+  const n = name.toLowerCase();
+
+  // Pão fatiado (de forma) — fatia padrão de pão industrializado
+  if (n.includes('pão') && n.includes('forma')) {
+    return [{ label: '1 fatia', grams: 25 }, { label: '2 fatias', grams: 50 }];
+  }
+  // Pão francês / sovado — unidade inteira
+  if (n.includes('pão') && (n.includes('francês') || n.includes('sovado'))) {
+    return [{ label: '1 unidade', grams: 50 }];
+  }
+  // Pão de queijo — unidade pequena tipo padaria
+  if (n.includes('pão') && n.includes('queijo')) {
+    return [{ label: '1 unidade', grams: 20 }, { label: '3 unidades', grams: 60 }];
+  }
+  // Torrada
+  if (n.includes('torrada')) {
+    return [{ label: '1 fatia', grams: 10 }, { label: '2 fatias', grams: 20 }];
+  }
+  // Queijos fatiáveis (duros/semi-duros) — fatia de sanduíche
+  if (n.includes('queijo') && /mozarela|prato|minas|parmesão|pasteurizado/.test(n)) {
+    return [{ label: '1 fatia', grams: 20 }, { label: '2 fatias', grams: 40 }];
+  }
+  // Queijos cremosos/pastosos — colher de sopa
+  if (n.includes('queijo') && /ricota|requeijão|cremoso|petit suisse/.test(n)) {
+    return [{ label: '1 colher de sopa', grams: 20 }];
+  }
+  // Ovo de galinha inteiro (cru/cozido/frito) — não clara/gema isolada
+  if (n.includes('ovo') && n.includes('galinha') && !n.includes('clara') && !n.includes('gema')) {
+    return [{ label: '1 unidade', grams: 50 }, { label: '2 unidades', grams: 100 }];
+  }
+  // Frutas cruas comuns, inteiras — peso médio de 1 unidade no Brasil
+  if (categoria.trim() === 'Frutas e derivados' && n.includes(', cru')) {
+    const FRUIT_UNIT_G: [string, number][] = [
+      ['banana', 90], ['maçã', 130], ['laranja', 180], ['pera', 140],
+      ['pêssego', 100], ['mamão', 160], ['tangerina', 100], ['kiwi', 75],
+      ['manga', 200], ['goiaba', 90], ['limão', 60], ['ameixa', 60],
+    ];
+    for (const [fruit, g] of FRUIT_UNIT_G) {
+      if (n.includes(fruit)) return [{ label: '1 unidade', grams: g }];
+    }
+  }
+  return undefined;
 }
 
 function loadFatMap(): Map<string, NutrientMap> {
@@ -117,6 +174,7 @@ interface GeneratedFood {
   nutrientSources: Partial<Record<NutrientKey, NutrientSource>>;
   lactoseLevel: 'none' | 'high';
   category: string;
+  portions?: Portion[];
 }
 
 function main() {
@@ -166,6 +224,7 @@ function main() {
       nutrientSources,
       lactoseLevel: lactoseHeuristic(inputs[idx].categoria),
       category: inputs[idx].categoria,
+      portions: derivePortions(u.name, inputs[idx].categoria),
     };
   });
 
@@ -205,6 +264,10 @@ function main() {
  *
  * nutrientSources traz a fonte por nutriente ('taco' | 'manual' | ...) —
  * ver src/lib/nutrientSourceMeta.ts para os badges de UI.
+ *
+ * portions (quando presente) é heurística de porção por unidade/fatia —
+ * peso médio caseiro conhecido, NÃO medido pela TACO (que só dá por 100g).
+ * Ver derivePortions() neste script.
  */
 import type { FoodItem } from './referenceData';
 
@@ -216,6 +279,7 @@ export const TACO_FOOD_BASE: FoodItem[] = `;
     per100g: g.per100g,
     lactoseLevel: g.lactoseLevel,
     nutrientSources: g.nutrientSources,
+    ...(g.portions ? { portions: g.portions } : {}),
   }));
   const body = JSON.stringify(bodyData, null, 2);
 
@@ -223,8 +287,10 @@ export const TACO_FOOD_BASE: FoodItem[] = `;
 
   const totalMissing = report.reduce((s, r) => s + r.missing.length, 0);
   const dairyCount = clean.filter((g) => g.lactoseLevel === 'high').length;
+  const withPortions = clean.filter((g) => g.portions?.length).length;
   console.log(`✓ ${clean.length} alimentos gerados (de ${mainRows.length} linhas na TACO).`);
   console.log(`  Marcados lactoseLevel='high' (categoria "Leite e derivados"): ${dairyCount}`);
+  console.log(`  Com porção por unidade/fatia (heurística, não medido pela TACO): ${withPortions}`);
   console.log(`  Lacunas de nutriente restantes (esperado sem USDA): ${totalMissing}`);
   console.log(`  Relatório completo: scripts/data/taco/coverage.report.json`);
 }

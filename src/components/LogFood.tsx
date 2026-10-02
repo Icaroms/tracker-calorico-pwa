@@ -6,16 +6,20 @@ import CustomFoodForm from './CustomFoodForm';
 import RecipeBuilder from './RecipeBuilder';
 import BarcodeScanner from './BarcodeScanner';
 import NutrientDetail from './NutrientDetail';
+import ExerciseLog from './ExerciseLog';
 
-const C = { ink: '#0F2A33', card: '#FFFFFF', slate: '#6B7E84', line: '#DCE5E6', teal: '#0E7C7B', green: '#2BA84A' };
+import { expandSearchTerms } from '../lib/searchSynonyms';
+import { useTheme } from '../theme';
+
 const MEALS: { value: MealSlot; label: string }[] = [
   { value: 'cafe', label: 'Café' }, { value: 'almoco', label: 'Almoço' },
   { value: 'lanche', label: 'Lanche' }, { value: 'jantar', label: 'Jantar' }, { value: 'ceia', label: 'Ceia' },
 ];
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-const inputStyle = { background: '#F1F6F6', color: C.ink };
 
 export default function LogFood() {
+  const C = useTheme();
+  const inputStyle = { background: C.chipBg, color: C.ink };
   const foods = useSearchableFoods();
   const frequent = useFrequentFoods(8);
   const { rows, totalKcal, remove, update } = useTodayEntries();
@@ -24,7 +28,9 @@ export default function LogFood() {
 
   const results = useMemo(() => {
     const q = norm(query.trim());
-    return (q ? foods.filter((f) => norm(f.name).includes(q)) : foods).slice(0, 25);
+    if (!q) return foods.slice(0, 25);
+    const terms = expandSearchTerms(q);
+    return foods.filter((f) => { const n = norm(f.name); return terms.some((t) => n.includes(t)); }).slice(0, 25);
   }, [foods, query]);
 
   const quickLog = (id: string, grams: number) => logFood({ foodId: id, meal, grams });
@@ -48,7 +54,7 @@ export default function LogFood() {
           <div className="flex gap-2 flex-wrap">
             {frequent.map((f) => (
               <button key={f.id} onClick={() => quickLog(f.id, f.defaultGrams)}
-                className="text-xs px-3 py-1.5 rounded-full" style={{ background: '#F1F6F6', color: C.ink, border: `1px solid ${C.line}` }}>
+                className="text-xs px-3 py-1.5 rounded-full" style={{ background: C.chipBg, color: C.ink, border: `1px solid ${C.line}` }}>
                 {f.name} <span style={{ color: C.slate }}>· {f.defaultLabel}</span>
               </button>
             ))}
@@ -58,7 +64,7 @@ export default function LogFood() {
 
       {/* Busca */}
       <div className="rounded-2xl p-4 mb-4" style={{ background: C.card }}>
-        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl" style={{ background: '#F1F6F6' }}>
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl" style={{ background: C.chipBg }}>
           <Search size={16} style={{ color: C.slate }} />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar alimento (ex.: banana)"
             className="bg-transparent outline-none text-sm flex-1" style={{ color: C.ink }} />
@@ -77,6 +83,9 @@ export default function LogFood() {
 
       {/* Criar receita / prato */}
       <RecipeBuilder />
+
+      {/* Registrar exercício */}
+      <ExerciseLog />
 
       {/* Comidos hoje */}
       <div className="rounded-2xl p-4" style={{ background: C.card }}>
@@ -106,6 +115,8 @@ export default function LogFood() {
 }
 
 function FoodRow({ food, meal }: { food: SearchFood; meal: MealSlot }) {
+  const C = useTheme();
+  const inputStyle = { background: C.chipBg, color: C.ink };
   const [grams, setGrams] = useState(100);
   const [flash, setFlash] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -132,7 +143,7 @@ function FoodRow({ food, meal }: { food: SearchFood; meal: MealSlot }) {
       </div>
       <div className="flex gap-1 flex-wrap mt-1.5">
         {chips.map((p, i) => (
-          <button key={i} onClick={() => add(p.grams)} className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: '#F1F6F6', color: C.teal, border: `1px solid ${C.line}` }}>
+          <button key={i} onClick={() => add(p.grams)} className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: C.chipBg, color: C.teal, border: `1px solid ${C.line}` }}>
             {p.label}
           </button>
         ))}
