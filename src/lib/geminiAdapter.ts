@@ -15,7 +15,7 @@ import { NUTRIENT_LABELS } from './dailyTotals';
 
 export interface GeminiOptions {
   apiKey: string;
-  model?: string; // free tier: 'gemini-2.5-flash' (padrão) ou '-flash-lite'
+  model?: string; // padrão: 'gemini-3.6-flash' — ver nota de depreciação abaixo
   signal?: AbortSignal;
 }
 
@@ -56,7 +56,14 @@ const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 /** Chamada HTTP genérica — usada pela análise diária e pelo relatório semanal. */
 async function callGemini(prompt: string, opts: GeminiOptions): Promise<string> {
-  const model = opts.model ?? 'gemini-2.5-flash';
+  // gemini-2.5-flash está sendo desligado pelo Google em out/2026 — chaves
+  // novas já recebem 404 ("no longer available to new users") antes mesmo
+  // do desligamento geral. gemini-3.6-flash é o substituto estável
+  // recomendado pela própria Google (ver aviso oficial de depreciação em
+  // ai.google.dev/gemini-api/docs/models). Confirmado contra docs reais,
+  // não chute — mas não testado contra a API de verdade neste sandbox
+  // (rede bloqueada pro Google); se a Google trocar de novo, só mudar aqui.
+  const model = opts.model ?? 'gemini-3.6-flash';
   const res = await fetch(`${ENDPOINT}/${model}:generateContent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': opts.apiKey },
@@ -65,12 +72,13 @@ async function callGemini(prompt: string, opts: GeminiOptions): Promise<string> 
       generationConfig: {
         temperature: 0.4,
         maxOutputTokens: 400,
-        // gemini-2.5-flash "pensa" por padrão, e esses tokens de raciocínio
-        // consomem o MESMO orçamento de maxOutputTokens — com um valor baixo
-        // (o antigo 220) o modelo gastava tudo pensando e a resposta saía
-        // cortada ou vazia. Essa tarefa é curta e determinística (resumo de
-        // poucas frases a partir de números), não precisa de raciocínio —
-        // desligar thinking resolve o corte E deixa a resposta mais rápida/barata.
+        // O controle de "thinking" (raciocínio interno que consome o mesmo
+        // orçamento de maxOutputTokens) existe desde a geração 2.5 e segue
+        // disponível na geração 3 — mantido desligado pelo mesmo motivo de
+        // antes: tarefa curta e determinística, não precisa de raciocínio,
+        // e evita resposta cortada. Não verificado ao vivo contra 3.6
+        // (mesma limitação de rede do sandbox) — se a resposta ainda vier
+        // vazia/cortada com o modelo novo, esse é o primeiro lugar a olhar.
         thinkingConfig: { thinkingBudget: 0 },
       },
     }),
