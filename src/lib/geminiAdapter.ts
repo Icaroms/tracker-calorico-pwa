@@ -2,12 +2,16 @@
  * geminiAdapter.ts
  * ----------------
  * Camada 2: análise por LLM (Gemini). Opcional, só roda online + com chave.
+ * Usada tanto pela análise diária quanto pelo relatório semanal — a parte
+ * HTTP/erro é comum (callGemini), só o prompt muda.
  *
  * Privacidade: SÓ envia o payload sanitizado (números). Chama assertSanitized
  * antes de transmitir — se algo não-numérico vazar, falha em vez de enviar.
  * A chave vai no header x-goog-api-key (não na URL).
  */
 import { assertSanitized, type LLMPayload } from './nutritionAnalyst';
+import type { WeeklyLLMPayload } from './weeklyAnalyst';
+import { NUTRIENT_LABELS } from './dailyTotals';
 
 export interface GeminiOptions {
   apiKey: string;
@@ -30,18 +34,45 @@ export function formatGeminiPrompt(payload: LLMPayload): string {
   ].join('\n');
 }
 
+/** Prompt do relatório semanal — mesmo princípio (só números, sem nome/data). */
+export function formatWeeklyGeminiPrompt(payload: WeeklyLLMPayload): string {
+  const lines = payload.nutrients
+    .map((n) => `- ${NUTRIENT_LABELS[n.key] ?? n.key}: média ${n.avgPercent}% da meta${n.direction === 'max' ? ' [limite]' : ''}`)
+    .join('\n');
+  return [
+    'Você é um assistente de nutrição. Com base APENAS nos números abaixo (resumo dos últimos 7 dias), escreva um comentário curto e amigável em português, no máximo 4 frases, com tom de "balanço da semana".',
+    'Aponte o padrão mais consistente (bom ou ruim), reconheça progresso se houver, e dê UMA sugestão prática pra próxima semana. Não faça diagnóstico nem suponha condições de saúde.',
+    '',
+    `Dias com registro: ${payload.daysLogged}/${payload.daysTotal}`,
+    `Média de calorias: ${payload.avgKcal}/${payload.avgKcalTarget} kcal/dia`,
+    payload.totalExerciseSessions > 0 ? `Exercício: ${payload.totalExerciseSessions} dia(s), ${payload.totalExerciseKcal} kcal no total` : 'Sem exercício registrado na semana',
+    payload.weightChangeKg != null ? `Variação de peso na semana: ${payload.weightChangeKg > 0 ? '+' : ''}${payload.weightChangeKg} kg` : '',
+    'Nutrientes (média da semana):',
+    lines,
+  ].filter(Boolean).join('\n');
+}
+
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-export async function analyzeWithGemini(payload: LLMPayload, opts: GeminiOptions): Promise<string> {
-  assertSanitized(payload); // trava de privacidade: nada não-numérico passa daqui
-
+/** Chamada HTTP genérica — usada pela análise diária e pelo relatório semanal. */
+async function callGemini(prompt: string, opts: GeminiOptions): Promise<string> {
   const model = opts.model ?? 'gemini-2.5-flash';
   const res = await fetch(`${ENDPOINT}/${model}:generateContent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': opts.apiKey },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: formatGeminiPrompt(payload) }] }],
-      generationConfig: { temperature: 0.4, maxOutputTokens: 220 },
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 400,
+        // gemini-2.5-flash "pensa" por padrão, e esses tokens de raciocínio
+        // consomem o MESMO orçamento de maxOutputTokens — com um valor baixo
+        // (o antigo 220) o modelo gastava tudo pensando e a resposta saía
+        // cortada ou vazia. Essa tarefa é curta e determinística (resumo de
+        // poucas frases a partir de números), não precisa de raciocínio —
+        // desligar thinking resolve o corte E deixa a resposta mais rápida/barata.
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     }),
     signal: opts.signal,
   });
@@ -51,10 +82,29 @@ export async function analyzeWithGemini(payload: LLMPayload, opts: GeminiOptions
     throw new Error(`Gemini respondeu ${res.status}`);
   }
   const data = await res.json();
-  const text: string = (data?.candidates?.[0]?.content?.parts ?? [])
+  const candidate = data?.candidates?.[0];
+  const text: string = (candidate?.content?.parts ?? [])
     .map((p: { text?: string }) => p.text ?? '')
     .join('')
     .trim();
-  if (!text) throw new Error('Resposta vazia do Gemini');
+
+  if (!text) {
+    // Resposta vazia geralmente é finishReason MAX_TOKENS (ainda cortou,
+    // apesar do thinking desligado) ou SAFETY (filtro de conteúdo) — dar
+    // uma mensagem que diz o motivo em vez de "resposta vazia" genérico.
+    const reason = candidate?.finishReason;
+    if (reason === 'MAX_TOKENS') throw new Error('Resposta do Gemini cortada por limite de tokens — tente de novo.');
+    if (reason === 'SAFETY' || reason === 'RECITATION') throw new Error('Gemini bloqueou a resposta (filtro de conteúdo).');
+    throw new Error('Resposta vazia do Gemini');
+  }
   return text;
+}
+
+export async function analyzeWithGemini(payload: LLMPayload, opts: GeminiOptions): Promise<string> {
+  assertSanitized(payload); // trava de privacidade: nada não-numérico passa daqui
+  return callGemini(formatGeminiPrompt(payload), opts);
+}
+
+export async function analyzeWeekWithGemini(payload: WeeklyLLMPayload, opts: GeminiOptions): Promise<string> {
+  return callGemini(formatWeeklyGeminiPrompt(payload), opts);
 }
