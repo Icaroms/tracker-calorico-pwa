@@ -49,4 +49,15 @@ export default defineConfig({
       },
     },
   },
+  test: {
+    environment: 'node',
+    // fake-indexeddb: só os testes que tocam db.ts (Dexie) precisam disso —
+    // a maioria dos testes é lógica pura e nem usa. Setup global é mais
+    // simples que configurar por arquivo, e o custo é desprezível.
+    setupFiles: ['./src/test/setup.ts'],
+    // e2e/*.spec.mjs usa node:test (não vitest) e precisa do preview server
+    // no ar — roda via `npm run test:e2e`, não `npm test`. Sem isso o
+    // Vitest tenta executá-los também (mesmo padrão *.spec.*) e falha.
+    exclude: ['**/node_modules/**', 'e2e/**'],
+  },
 });
