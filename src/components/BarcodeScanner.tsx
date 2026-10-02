@@ -3,9 +3,8 @@ import { ChevronDown, ScanLine, Camera, Search, Plus, Check, X } from 'lucide-re
 import { fetchOffProduct, type OffFood } from '../lib/openFoodFacts';
 import { useSaveCustomFood, useLogFood } from '../hooks/useTracker';
 import type { MealSlot } from '../lib/db';
+import { useTheme } from '../theme';
 
-const C = { ink: '#0F2A33', card: '#FFFFFF', slate: '#6B7E84', line: '#DCE5E6', teal: '#0E7C7B', green: '#2BA84A', coral: '#E0613E' };
-const inputStyle = { background: '#F1F6F6', color: C.ink };
 const MEALS: { value: MealSlot; label: string }[] = [
   { value: 'cafe', label: 'Café' }, { value: 'almoco', label: 'Almoço' },
   { value: 'lanche', label: 'Lanche' }, { value: 'jantar', label: 'Jantar' }, { value: 'ceia', label: 'Ceia' },
@@ -14,6 +13,8 @@ const MEALS: { value: MealSlot; label: string }[] = [
 type Status = 'idle' | 'loading' | 'notfound' | 'error';
 
 export default function BarcodeScanner() {
+  const C = useTheme();
+  const inputStyle = { background: C.chipBg, color: C.ink };
   const saveCustom = useSaveCustomFood();
   const logFood = useLogFood();
 
@@ -104,7 +105,7 @@ export default function BarcodeScanner() {
           )}
 
           {/* Entrada manual */}
-          <div className="flex items-center gap-2 mb-1 px-3 py-2 rounded-xl" style={{ background: '#F1F6F6' }}>
+          <div className="flex items-center gap-2 mb-1 px-3 py-2 rounded-xl" style={{ background: C.chipBg }}>
             <Search size={15} style={{ color: C.slate }} />
             <input value={manual} onChange={(e) => setManual(e.target.value)} inputMode="numeric" placeholder="Ou digite o código (EAN)"
               className="bg-transparent outline-none text-sm flex-1" style={{ color: C.ink }} />
@@ -119,7 +120,7 @@ export default function BarcodeScanner() {
 
           {/* Resultado */}
           {product && (
-            <div className="rounded-xl p-3 mt-2" style={{ background: '#F1F6F6' }}>
+            <div className="rounded-xl p-3 mt-2" style={{ background: C.chipBg }}>
               <div className="text-sm font-medium mb-1">{product.name}</div>
               <div className="text-xs mb-2" style={{ color: C.slate }}>
                 {Math.round(product.per100g.kcal ?? 0)} kcal/100g · {Math.round(product.per100g.protein ?? 0)}g proteína · {product.lactoseLevel === 'none' ? 'sem lactose' : 'pode ter lactose'}

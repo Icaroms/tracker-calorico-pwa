@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../theme';
 
 /*
   Sparkline de peso em SVG puro — sem recharts.
@@ -6,12 +7,12 @@ import React from 'react';
   preserveAspectRatio="none" + vector-effect mantém o traço fino e nítido
   em qualquer largura; rótulos são HTML sobreposto (não distorcem).
 */
-const C = { green: '#2BA84A', line: '#C2D1D3', slate: '#6B7E84' };
 const VB_W = 300, VB_H = 120, PAD_X = 4, PAD_Y = 12;
 
 interface P { idx: number; weightKg: number; avg: number; }
 
 export default function WeightSparkline({ data }: { data: P[] }) {
+  const C = useTheme();
   if (data.length === 0) return <div style={{ height: VB_H }} />;
 
   const vals = data.flatMap((d) => [d.weightKg, d.avg]);

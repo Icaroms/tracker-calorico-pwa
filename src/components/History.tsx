@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChevronDown, X } from 'lucide-react';
-import { useHistory, useTodayEntries } from '../hooks/useTracker';
-
-const C = { ink: '#0F2A33', card: '#FFFFFF', slate: '#6B7E84', line: '#DCE5E6', teal: '#0E7C7B', green: '#2BA84A' };
+import { useHistory, useTodayEntries, useWeeklyRaw } from '../hooks/useTracker';
+import { useWeeklyAnalysis } from '../hooks/useAnalysis';
+import { useTheme } from '../theme';
+import WeeklyReport from './WeeklyReport';
 
 const RANGES: { days: number; label: string }[] = [
   { days: 7, label: 'Semana' }, { days: 30, label: 'Mês' }, { days: 90, label: '3 meses' },
@@ -12,8 +13,13 @@ const RANGES: { days: number; label: string }[] = [
 const shortDay = (iso: string) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
 
 export default function History() {
+  const C = useTheme();
   const [range, setRange] = useState(30);
   const { days, weight } = useHistory(range);
+
+  const weeklyRaw = useWeeklyRaw(7);
+  const geminiApiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('geminiApiKey') ?? undefined : undefined;
+  const weeklyAnalysis = useWeeklyAnalysis(weeklyRaw.dayAggs, weeklyRaw.goalsMap, weeklyRaw.weightPoints, weeklyRaw.ready, { geminiApiKey });
 
   const loggedDays = days.filter((d) => d.entries > 0);
   const avgKcal = loggedDays.length ? Math.round(loggedDays.reduce((s, d) => s + d.kcal, 0) / loggedDays.length) : 0;
@@ -21,6 +27,8 @@ export default function History() {
 
   return (
     <div style={{ color: C.ink }}>
+      {weeklyAnalysis && <WeeklyReport analysis={weeklyAnalysis} hasKey={!!geminiApiKey} />}
+
       <div className="flex gap-1 mb-4">
         {RANGES.map((r) => (
           <button key={r.days} onClick={() => setRange(r.days)}
@@ -79,6 +87,7 @@ export default function History() {
 }
 
 function DayRow({ day, kcal, entries }: { day: string; kcal: number; entries: number }) {
+  const C = useTheme();
   const [open, setOpen] = useState(false);
   return (
     <li>
@@ -94,6 +103,7 @@ function DayRow({ day, kcal, entries }: { day: string; kcal: number; entries: nu
 }
 
 function DayEntries({ day }: { day: string }) {
+  const C = useTheme();
   const { rows, remove, update } = useTodayEntries(day);
   if (rows.length === 0) return <p className="text-xs py-2 pl-5" style={{ color: C.slate }}>Sem itens.</p>;
   return (
@@ -102,7 +112,7 @@ function DayEntries({ day }: { day: string }) {
         <li key={r.id} className="flex items-center gap-2 text-sm">
           <span className="flex-1 truncate">{r.name}</span>
           <input type="number" value={r.grams} onChange={(e) => update(r.id, Math.max(0, Number(e.target.value)))}
-            className="w-16 text-right px-2 py-1 rounded-lg outline-none" style={{ background: '#F1F6F6', color: C.ink }} />
+            className="w-16 text-right px-2 py-1 rounded-lg outline-none" style={{ background: C.chipBg, color: C.ink }} />
           <span className="text-xs" style={{ color: C.slate }}>g</span>
           <span className="text-xs tabular-nums w-14 text-right" style={{ color: C.slate }}>{r.kcal} kcal</span>
           <button onClick={() => remove(r.id)} style={{ color: C.slate }}><X size={15} /></button>

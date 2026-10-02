@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { useSaveProfile } from '../hooks/useTracker';
 import type { ActivityLevel, Sex } from '../lib/calorieEngine';
+import { useTheme } from '../theme';
 
-const C = { ink: '#0F2A33', bg: '#EEF3F4', card: '#FFFFFF', slate: '#6B7E84', line: '#DCE5E6', teal: '#0E7C7B', green: '#2BA84A' };
-const inputStyle = { background: '#F1F6F6', color: C.ink };
 const inputCls = 'w-full text-sm px-3 py-2 rounded-lg outline-none';
 
 const ACTIVITIES: { v: ActivityLevel; label: string }[] = [
@@ -18,15 +17,18 @@ const DEFICITS: { v: number; label: string; sub: string }[] = [
 ];
 
 function Choice({ active, onClick, label, sub }: { active: boolean; onClick: () => void; label: string; sub?: string }) {
+  const C = useTheme();
   return (
     <button onClick={onClick} className="px-3 py-2 rounded-xl text-sm text-left"
-      style={{ background: active ? C.teal : '#F1F6F6', color: active ? '#fff' : C.ink, border: `1px solid ${active ? C.teal : C.line}` }}>
+      style={{ background: active ? C.teal : C.chipBg, color: active ? '#fff' : C.ink, border: `1px solid ${active ? C.teal : C.line}` }}>
       <div>{label}</div>{sub && <div className="text-[11px] opacity-80">{sub}</div>}
     </button>
   );
 }
 
 export default function Onboarding({ onDone }: { onDone: () => void }) {
+  const C = useTheme();
+  const inputStyle = { background: C.chipBg, color: C.ink };
   const save = useSaveProfile();
   const [step, setStep] = useState(0);
   const [f, setF] = useState({

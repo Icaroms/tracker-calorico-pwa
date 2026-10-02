@@ -2,15 +2,16 @@ import React, { useState, useMemo } from 'react';
 import { ChevronDown, Search, Plus, X, Check, Trash2, ChefHat } from 'lucide-react';
 import { useSearchableFoods, useFoodResolver, useRecipes, useSaveRecipe, useDeleteRecipe } from '../hooks/useTracker';
 import { recipeNutrients, recipePer100g, recipeTotalGrams, recipeLactoseLevel, type Recipe } from '../lib/recipes';
+import { useTheme } from '../theme';
 
-const C = { ink: '#0F2A33', card: '#FFFFFF', slate: '#6B7E84', line: '#DCE5E6', teal: '#0E7C7B', green: '#2BA84A' };
-const inputStyle = { background: '#F1F6F6', color: C.ink };
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const LACT_LABEL: Record<string, string> = { none: 'sem lactose', low: 'lactose baixa', moderate: 'lactose moderada', high: 'lactose alta' };
 
 interface Ing { foodId: string; grams: number; name: string; }
 
 export default function RecipeBuilder() {
+  const C = useTheme();
+  const inputStyle = { background: C.chipBg, color: C.ink };
   const foods = useSearchableFoods();
   const resolve = useFoodResolver();
   const recipes = useRecipes();
@@ -78,7 +79,7 @@ export default function RecipeBuilder() {
           )}
 
           {/* buscar ingrediente */}
-          <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-xl" style={{ background: '#F1F6F6' }}>
+          <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-xl" style={{ background: C.chipBg }}>
             <Search size={15} style={{ color: C.slate }} />
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Adicionar ingrediente"
               className="bg-transparent outline-none text-sm flex-1" style={{ color: C.ink }} />
@@ -100,7 +101,7 @@ export default function RecipeBuilder() {
           </label>
 
           {preview && (
-            <div className="rounded-xl p-3 mb-3 text-sm" style={{ background: '#F1F6F6' }}>
+            <div className="rounded-xl p-3 mb-3 text-sm" style={{ background: C.chipBg }}>
               <div className="flex justify-between"><span style={{ color: C.slate }}>Total</span><span className="tabular-nums">{preview.totalKcal} kcal · {preview.grams} g</span></div>
               <div className="flex justify-between"><span style={{ color: C.slate }}>Por 100 g</span><span className="tabular-nums">{preview.per100Kcal} kcal · {preview.protein}g proteína total</span></div>
               <div className="flex justify-between"><span style={{ color: C.slate }}>Lactose</span><span>{LACT_LABEL[preview.lactose]}</span></div>

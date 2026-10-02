@@ -3,8 +3,7 @@ import { Save, Trash2 } from 'lucide-react';
 import { useProfile, useSaveProfile, useDailyPlan, useWeightLogs } from '../hooks/useTracker';
 import type { ActivityLevel, Sex } from '../lib/calorieEngine';
 import type { WeightLog } from '../lib/db';
-
-const C = { ink: '#0F2A33', card: '#FFFFFF', slate: '#6B7E84', line: '#DCE5E6', teal: '#0E7C7B', green: '#2BA84A' };
+import { useTheme } from '../theme';
 
 const ACTIVITIES: { v: ActivityLevel; label: string }[] = [
   { v: 'sedentary', label: 'Sedentário' }, { v: 'light', label: 'Leve' },
@@ -12,6 +11,7 @@ const ACTIVITIES: { v: ActivityLevel; label: string }[] = [
 ];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const C = useTheme();
   return (
     <label className="block">
       <span className="text-xs" style={{ color: C.slate }}>{label}</span>
@@ -21,9 +21,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const inputCls = 'w-full text-sm px-3 py-2 rounded-lg outline-none';
-const inputStyle = { background: '#F1F6F6', color: C.ink };
 
 export default function Profile() {
+  const C = useTheme();
+  const inputStyle = { background: C.chipBg, color: C.ink };
   const profile = useProfile();
   const save = useSaveProfile();
   const plan = useDailyPlan();
@@ -100,7 +101,7 @@ export default function Profile() {
             <span style={{ color: C.slate }}>Água</span><span className="text-right tabular-nums">{plan.plan.waterMl} ml</span>
             {plan.plan.cardio && (<><span style={{ color: C.slate }}>Cintura/quadril</span><span className="text-right tabular-nums">{plan.plan.cardio.ratio} ({plan.plan.cardio.risk})</span></>)}
           </div>
-          {plan.plan.calories.clampedToFloor && <p className="text-[11px] mt-2" style={{ color: '#E0613E' }}>⚠ A meta bateu no piso de segurança — o déficit foi reduzido.</p>}
+          {plan.plan.calories.clampedToFloor && <p className="text-[11px] mt-2" style={{ color: C.coral }}>⚠ A meta bateu no piso de segurança — o déficit foi reduzido.</p>}
         </div>
       )}
 
@@ -110,6 +111,7 @@ export default function Profile() {
 }
 
 function WeightHistory() {
+  const C = useTheme();
   const { logs, update, remove } = useWeightLogs();
   if (logs.length === 0) return null;
   return (
@@ -123,6 +125,8 @@ function WeightHistory() {
 }
 
 function WeightRow({ log, onUpdate, onRemove }: { log: WeightLog; onUpdate: (id: number, c: Partial<WeightLog>) => void; onRemove: (id: number) => void }) {
+  const C = useTheme();
+  const inputStyle = { background: C.chipBg, color: C.ink };
   const [val, setVal] = useState(String(log.weightKg));
   const commit = () => {
     const n = Number(val);

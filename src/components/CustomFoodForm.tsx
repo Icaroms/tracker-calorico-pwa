@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useSaveCustomFood } from '../hooks/useTracker';
 import type { LactoseLevel } from '../lib/referenceData';
-
-const C = { ink: '#0F2A33', card: '#FFFFFF', slate: '#6B7E84', line: '#DCE5E6', teal: '#0E7C7B', green: '#2BA84A' };
+import { useTheme } from '../theme';
 
 // Campos por 100 g. kcal e proteína são os mais úteis; o resto é opcional.
 const FIELDS: { key: string; label: string }[] = [
@@ -14,9 +13,9 @@ const FIELDS: { key: string; label: string }[] = [
   { key: 'iron', label: 'Ferro (mg)' }, { key: 'vitaminC', label: 'Vitamina C (mg)' },
 ];
 
-const inputStyle = { background: '#F1F6F6', color: C.ink };
-
 export default function CustomFoodForm() {
+  const C = useTheme();
+  const inputStyle = { background: C.chipBg, color: C.ink };
   const saveCustom = useSaveCustomFood();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');

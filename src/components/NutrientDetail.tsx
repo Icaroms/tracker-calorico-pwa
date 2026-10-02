@@ -3,8 +3,7 @@ import { Info } from 'lucide-react';
 import { NUTRIENT_LABELS, TRACKED_NUTRIENTS } from '../lib/dailyTotals';
 import { foodById } from '../lib/referenceData';
 import { SOURCE_META, NUTRIENT_UNITS } from '../lib/nutrientSourceMeta';
-
-const C = { ink: '#0F2A33', slate: '#6B7E84', line: '#DCE5E6' };
+import { useTheme } from '../theme';
 
 /**
  * Detalhe nutricional de um alimento com badge de fonte por nutriente
@@ -13,6 +12,7 @@ const C = { ink: '#0F2A33', slate: '#6B7E84', line: '#DCE5E6' };
  * têm rastreabilidade por nutriente, então mostram um aviso simples.
  */
 export default function NutrientDetail({ foodId }: { foodId: string }) {
+  const C = useTheme();
   const food = foodById(foodId);
 
   if (!food) {

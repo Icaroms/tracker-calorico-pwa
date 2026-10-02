@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { KeyRound, Download, Upload, FileSpreadsheet, Check } from 'lucide-react';
+import { KeyRound, Download, Upload, FileSpreadsheet, Check, Sun, Moon, MonitorSmartphone } from 'lucide-react';
 import { exportAll, importAll, setGoal } from '../lib/db';
 import { downloadSpreadsheet } from '../lib/spreadsheetExport';
 import { NUTRIENT_LABELS, type NutrientKey } from '../lib/dailyTotals';
 import { useGoals } from '../hooks/useTracker';
-
-const C = { ink: '#0F2A33', card: '#FFFFFF', slate: '#6B7E84', line: '#DCE5E6', teal: '#0E7C7B', green: '#2BA84A' };
-const inputStyle = { background: '#F1F6F6', color: C.ink };
+import { useTheme, useThemeMode, type ThemeMode } from '../theme';
 
 function downloadText(text: string, filename: string, type: string) {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -15,7 +13,16 @@ function downloadText(text: string, filename: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
+const THEME_OPTIONS: { v: ThemeMode; label: string; icon: React.ReactNode }[] = [
+  { v: 'light', label: 'Claro', icon: <Sun size={14} /> },
+  { v: 'dark', label: 'Escuro', icon: <Moon size={14} /> },
+  { v: 'system', label: 'Sistema', icon: <MonitorSmartphone size={14} /> },
+];
+
 export default function Settings() {
+  const C = useTheme();
+  const inputStyle = { background: C.chipBg, color: C.ink };
+  const { mode, setMode } = useThemeMode();
   const goals = useGoals();
   const [key, setKey] = useState('');
   const [keySaved, setKeySaved] = useState(false);
@@ -50,6 +57,20 @@ export default function Settings() {
 
   return (
     <div style={{ color: C.ink }}>
+      {/* Aparência */}
+      <div className="rounded-2xl p-4 mb-4" style={{ background: C.card }}>
+        <h2 className="text-sm mb-3" style={{ color: C.slate }}>Aparência</h2>
+        <div className="flex gap-2">
+          {THEME_OPTIONS.map((o) => (
+            <button key={o.v} onClick={() => setMode(o.v)}
+              className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 rounded-xl"
+              style={{ background: mode === o.v ? C.teal : C.chipBg, color: mode === o.v ? '#fff' : C.ink }}>
+              {o.icon} {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Gemini */}
       <div className="rounded-2xl p-4 mb-4" style={{ background: C.card }}>
         <h2 className="flex items-center gap-2 text-sm mb-3" style={{ color: C.slate }}><KeyRound size={15} /> Análise por IA (Gemini)</h2>

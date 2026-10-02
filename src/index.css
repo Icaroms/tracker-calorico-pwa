@@ -6,3 +6,10 @@ body {
   margin: 0;
   background: #eef3f4;
 }
+
+/* Evita flash de fundo claro antes do React montar e aplicar a paleta —
+   só entra em jogo se o dispositivo já pede escuro por padrão. O React
+   assume o controle depois (theme.tsx sincroniza document.body.style). */
+@media (prefers-color-scheme: dark) {
+  body { background: #0D1A1C; }
+}
