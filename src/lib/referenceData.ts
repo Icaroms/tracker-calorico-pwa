@@ -37,6 +37,7 @@ export interface FoodItem {
     magnesium?: number; // mg
     iron?: number; // mg
     potassium?: number; // mg
+    sodium?: number; // mg — 'max' na meta padrão (limite, não objetivo a bater)
     selenium?: number; // mcg
     vitaminA?: number; // mcg RAE
     vitaminC?: number; // mg
@@ -142,6 +143,49 @@ export const CURATED_FOOD_BASE: FoodItem[] = [
     portions: [{ label: '1 fatia fina', grams: 20 }],
     goodFor: ['calcium', 'protein'],
     tags: ['lacticinio-liberado'],
+  },
+  // A TACO só tem pão de forma INTEGRAL — o tradicional/branco, o mais
+  // consumido no Brasil, não existe nela. Fonte: TBCA (USP), cruzada com
+  // 2 sites de referência independentes que bateram nos mesmos números.
+  {
+    id: 'pao-forma-tradicional',
+    name: 'Pão de forma tradicional (branco)',
+    per100g: { kcal: 260, protein: 9.5, carb: 48.8, fat: 2.4, sodium: 860 },
+    lactoseLevel: 'none',
+    portions: [{ label: '1 fatia', grams: 25 }, { label: '2 fatias', grams: 50 }],
+    tags: ['pao'],
+  },
+  // Cheddar/gouda/coalho: não existem na TACO (tabela brasileira não cobre
+  // queijos internacionais). Valores cruzados de múltiplas fontes
+  // independentes (convergiram nos mesmos números — bom sinal de
+  // confiabilidade), mas sem tabela oficial única por trás, por isso
+  // 'manual' e sem os micronutrientes que eu não tinha fonte confiável.
+  {
+    id: 'queijo-cheddar',
+    name: 'Queijo cheddar',
+    per100g: { kcal: 403, protein: 22.9, carb: 3.1, fat: 33.3, saturatedFat: 21.1, calcium: 721, sodium: 653 },
+    lactoseLevel: 'low', // curado/duro, lactose baixa
+    portions: [{ label: '1 fatia', grams: 20 }, { label: '2 fatias', grams: 40 }],
+    goodFor: ['calcium', 'protein'],
+    tags: ['queijo'],
+  },
+  {
+    id: 'queijo-gouda',
+    name: 'Queijo gouda',
+    per100g: { kcal: 355, protein: 24.9, carb: 2.2, fat: 27.4, saturatedFat: 17.6, calcium: 697, sodium: 819 },
+    lactoseLevel: 'low', // curado/duro, lactose baixa
+    portions: [{ label: '1 fatia', grams: 20 }, { label: '2 fatias', grams: 40 }],
+    goodFor: ['calcium', 'protein'],
+    tags: ['queijo'],
+  },
+  {
+    id: 'queijo-coalho',
+    name: 'Queijo coalho',
+    per100g: { kcal: 340, protein: 24, carb: 1.3, fat: 27, saturatedFat: 17, calcium: 850, sodium: 850 },
+    lactoseLevel: 'moderate', // semi-duro, menos maturado que cheddar/gouda/parmesão
+    portions: [{ label: '1 fatia', grams: 30 }, { label: 'espetinho (100g)', grams: 100 }],
+    goodFor: ['calcium', 'protein'],
+    tags: ['queijo'],
   },
 ];
 
