@@ -44,6 +44,20 @@ export interface FoodEntry {
   createdAt: string;
 }
 
+/**
+ * Exercício registrado. `kcalBurned` é GRAVADO no momento do registro (não
+ * recalculado depois) — usa o peso da pessoa NAQUELE dia. Se o peso mudar
+ * mais tarde, o histórico continua correto em vez de mudar retroativamente.
+ */
+export interface ExerciseEntry {
+  id?: number;
+  day: string;
+  exerciseId: string; // referencia exerciseEngine.EXERCISE_BASE
+  minutes: number;
+  kcalBurned: number;
+  createdAt: string;
+}
+
 export interface CustomFood {
   id?: string; // ex.: 'custom:tapioca'
   name: string;
@@ -99,6 +113,7 @@ export class TrackerDB extends Dexie {
   goals!: Table<Goal, string>;
   profile!: Table<Profile, number>;
   recipes!: Table<Recipe, string>;
+  exerciseEntries!: Table<ExerciseEntry, number>;
 
   constructor() {
     super('DeficitTrackerDB');
@@ -124,6 +139,10 @@ export class TrackerDB extends Dexie {
     // ErrorBoundary. Migração automática do Dexie, não perde dado nenhum.
     this.version(3).stores({
       foodEntries: '++id, day, [day+meal], foodId, recipeId, createdAt',
+    });
+    // v4: registro de exercícios (gasto calórico por MET).
+    this.version(4).stores({
+      exerciseEntries: '++id, day, createdAt',
     });
   }
 }
@@ -178,6 +197,26 @@ export async function removeEntry(id: number): Promise<void> {
 
 export async function updateEntry(id: number, changes: Partial<FoodEntry>): Promise<void> {
   await db.foodEntries.update(id, changes);
+}
+
+// ─── Helpers de exercício ───────────────────────────────────────────────────
+
+export async function logExercise(
+  entry: Omit<ExerciseEntry, 'id' | 'createdAt' | 'day'> & { day?: string },
+): Promise<number> {
+  return db.exerciseEntries.add({ ...entry, day: entry.day ?? today(), createdAt: now() });
+}
+
+export async function exercisesForDay(day: string = today()): Promise<ExerciseEntry[]> {
+  return db.exerciseEntries.where('day').equals(day).toArray();
+}
+
+export async function removeExerciseEntry(id: number): Promise<void> {
+  await db.exerciseEntries.delete(id);
+}
+
+export async function updateExerciseEntry(id: number, changes: Partial<ExerciseEntry>): Promise<void> {
+  await db.exerciseEntries.update(id, changes);
 }
 
 // ─── Helpers de receita/prato ───────────────────────────────────────────────
@@ -264,6 +303,7 @@ export async function exportAll(): Promise<string> {
     goals: await db.goals.toArray(),
     profile: await db.profile.toArray(),
     recipes: await db.recipes.toArray(),
+    exerciseEntries: await db.exerciseEntries.toArray(),
   };
   return JSON.stringify(dump);
 }
@@ -272,7 +312,7 @@ export async function importAll(json: string): Promise<void> {
   const data = JSON.parse(json);
   await db.transaction(
     'rw',
-    [db.weightLogs, db.foodEntries, db.customFoods, db.planSnapshots, db.dayMeta, db.goals, db.profile, db.recipes],
+    [db.weightLogs, db.foodEntries, db.customFoods, db.planSnapshots, db.dayMeta, db.goals, db.profile, db.recipes, db.exerciseEntries],
     async () => {
       await Promise.all([
         db.weightLogs.bulkPut(data.weightLogs ?? []),
@@ -283,6 +323,7 @@ export async function importAll(json: string): Promise<void> {
         db.goals.bulkPut(data.goals ?? []),
         db.profile.bulkPut(data.profile ?? []),
         db.recipes.bulkPut(data.recipes ?? []),
+        db.exerciseEntries.bulkPut(data.exerciseEntries ?? []),
       ]);
     },
   );
