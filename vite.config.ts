@@ -55,6 +55,12 @@ export default defineConfig({
     // a maioria dos testes é lógica pura e nem usa. Setup global é mais
     // simples que configurar por arquivo, e o custo é desprezível.
     setupFiles: ['./src/test/setup.ts'],
+    // Testes rodam no fuso de Manaus (UTC−4), onde o app é usado de verdade.
+    // Em UTC (padrão de CI) bugs de "dia errado" ficam invisíveis — foi assim
+    // que o bug do toISOString() passou despercebido. Configurado aqui (e
+    // não via `TZ=... vitest` no package.json) porque essa sintaxe não
+    // funciona no cmd do Windows.
+    env: { TZ: 'America/Manaus' },
     // e2e/*.spec.mjs usa node:test (não vitest) e precisa do preview server
     // no ar — roda via `npm run test:e2e`, não `npm test`. Sem isso o
     // Vitest tenta executá-los também (mesmo padrão *.spec.*) e falha.

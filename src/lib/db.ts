@@ -16,6 +16,7 @@
  *   - `day` = 'YYYY-MM-DD' (chave de dia, indexável)
  *   - `createdAt` = timestamp ISO completo
  */
+import { today, now } from './dates';
 import Dexie, { type Table } from 'dexie';
 import type { Sex, ActivityLevel } from './calorieEngine';
 import { expandRecipe, type Recipe } from './recipes';
@@ -151,8 +152,6 @@ export const db = new TrackerDB();
 
 // ─── Helpers de peso/medidas ────────────────────────────────────────────────
 
-const today = (): string => new Date().toISOString().slice(0, 10);
-const now = (): string => new Date().toISOString();
 
 export async function addWeightLog(
   entry: Omit<WeightLog, 'id' | 'day' | 'createdAt'> & { day?: string },

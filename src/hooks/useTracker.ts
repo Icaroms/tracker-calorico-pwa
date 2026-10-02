@@ -28,7 +28,7 @@ import { suggestMeals, type MealOption } from '../lib/mealSuggester';
 import { exerciseById, kcalBurned, EXERCISE_BASE } from '../lib/exerciseEngine';
 import { type DayAgg, type WeightPoint as WeeklyWeightPoint } from '../lib/weeklyAnalyst';
 
-const today = (): string => new Date().toISOString().slice(0, 10);
+import { today, daysAgo, lastNDays } from '../lib/dates';
 
 const slugify = (s: string): string =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -266,8 +266,11 @@ export function useSaveProfile() {
 // ── Cadastrar alimento próprio ──────────────────────────────────────────────
 export function useSaveCustomFood() {
   return useCallback(
-    async (input: { name: string; per100g: Record<string, number>; lactoseLevel?: LactoseLevel }) => {
-      const id = 'custom:' + slugify(input.name);
+    // `id` explícito: produtos escaneados usam 'off:<código de barras>' (único
+    // por produto). Sem id, cai no slug do nome — comportamento dos alimentos
+    // cadastrados à mão, mantido pra não mudar o id de quem já os tem salvos.
+    async (input: { id?: string; name: string; per100g: Record<string, number>; lactoseLevel?: LactoseLevel }) => {
+      const id = input.id ?? 'custom:' + slugify(input.name);
       await db.customFoods.put({ id, name: input.name, per100g: input.per100g, lactoseLevel: input.lactoseLevel });
       return id;
     },
@@ -304,11 +307,7 @@ export function useDeleteRecipe() {
 export interface HistoryDay { day: string; kcal: number; entries: number; }
 
 export function useHistory(rangeDays = 30) {
-  const since = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - rangeDays + 1);
-    return d.toISOString().slice(0, 10);
-  }, [rangeDays]);
+  const since = useMemo(() => daysAgo(rangeDays - 1), [rangeDays]);
 
   const entries = useLiveQuery(() => db.foodEntries.where('day').aboveOrEqual(since).toArray(), [since], []);
   const resolve = useFoodResolver();
@@ -331,16 +330,6 @@ export function useHistory(rangeDays = 30) {
 }
 
 // ── Agregação dos últimos N dias pro relatório semanal ──────────────────────
-function lastNDays(n: number): string[] {
-  const out: string[] = [];
-  const d = new Date();
-  for (let i = n - 1; i >= 0; i--) {
-    const day = new Date(d);
-    day.setDate(d.getDate() - i);
-    out.push(day.toISOString().slice(0, 10));
-  }
-  return out;
-}
 
 /**
  * Agrega os últimos `n` dias (padrão 7) em `DayAgg[]` pra alimentar
