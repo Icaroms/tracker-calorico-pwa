@@ -10,7 +10,7 @@
  *   - Demais nutrientes → TACO primeiro (mais fiel ao alimento BR), USDA depois.
  *   - Fibra solúvel é tratada à parte ('manual'): nenhuma tabela separa bem.
  */
-import type { NutrientKey } from './dailyTotals';
+import { TRACKED_NUTRIENTS, type NutrientKey } from './dailyTotals';
 
 export type NutrientSource = 'taco' | 'usda' | 'tbca' | 'manual' | 'deduced';
 
@@ -45,12 +45,12 @@ export interface MergeInput {
   deduced?: NutrientMap;
 }
 
-const ALL_KEYS: NutrientKey[] = [
-  'kcal', 'protein', 'carb', 'fat', 'saturatedFat', 'fiberSoluble', 'omega3',
-  'calcium', 'magnesium', 'iron', 'potassium', 'selenium', 'vitaminA', 'vitaminC',
-  'vitaminB1', 'vitaminB2', 'vitaminB3', 'vitaminB5', 'vitaminB6', 'vitaminB7',
-  'vitaminB9', 'vitaminB12', 'vitaminD',
-];
+// Antes havia uma cópia própria dessa lista aqui — bug real: ao adicionar
+// 'sodium' a TRACKED_NUTRIENTS (dailyTotals.ts) sem lembrar de atualizar a
+// cópia, o merge silenciosamente nunca processava sódio, apesar da coluna
+// já estar mapeada no importador. Referenciar a fonte única elimina essa
+// classe de bug de vez (pego por teste automatizado, não por inspeção).
+const ALL_KEYS: readonly NutrientKey[] = TRACKED_NUTRIENTS;
 
 function pick(
   key: NutrientKey,
