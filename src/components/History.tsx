@@ -4,6 +4,7 @@ import { ChevronDown, X } from 'lucide-react';
 import { useHistory, useTodayEntries, useWeeklyRaw } from '../hooks/useTracker';
 import { useWeeklyAnalysis } from '../hooks/useAnalysis';
 import { useTheme } from '../theme';
+import { getGeminiApiKey } from '../lib/settings';
 import WeeklyReport from './WeeklyReport';
 
 const RANGES: { days: number; label: string }[] = [
@@ -18,7 +19,7 @@ export default function History() {
   const { days, weight } = useHistory(range);
 
   const weeklyRaw = useWeeklyRaw(7);
-  const geminiApiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('geminiApiKey') ?? undefined : undefined;
+  const geminiApiKey = getGeminiApiKey();
   const weeklyAnalysis = useWeeklyAnalysis(weeklyRaw.dayAggs, weeklyRaw.goalsMap, weeklyRaw.weightPoints, weeklyRaw.ready, { geminiApiKey });
 
   const loggedDays = days.filter((d) => d.entries > 0);

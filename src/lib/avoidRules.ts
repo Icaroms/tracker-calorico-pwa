@@ -14,6 +14,7 @@
  * Regras estáticas, não é IA de verdade — determinístico e auditável, roda
  * 100% local, igual ao resto da Camada 1.
  */
+import { normalizeText } from './searchSynonyms';
 import { NUTRIENT_LABELS, type NutrientProgress, type NutrientKey } from './dailyTotals';
 
 const label = (k: NutrientKey) => NUTRIENT_LABELS[k] ?? k;
@@ -63,7 +64,6 @@ export function avoidByLimit(progress: NutrientProgress[], kcalConsumed: number,
 export interface TimedEntry { name: string; hour: number; }
 export interface TimingCaution { message: string; }
 
-const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 // Palavras-chave batem no nome do alimento já normalizado (sem acento).
 // 'cha, mate'/'cha, preto' (com vírgula) evita falso positivo com chá de
@@ -80,7 +80,7 @@ export function timingCautions(entries: TimedEntry[]): TimingCaution[] {
   const messages = new Set<string>();
 
   for (const e of entries) {
-    const n = norm(e.name);
+    const n = normalizeText(e.name);
     if (e.hour >= 18 && CAFFEINE_KEYWORDS.some((k) => n.includes(k))) {
       messages.add('Cafeína à noite pode atrapalhar o sono — evite café, chá mate/preto, guaraná ou energético a partir do fim da tarde.');
     }

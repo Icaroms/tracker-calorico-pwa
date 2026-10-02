@@ -5,6 +5,7 @@ import { downloadSpreadsheet } from '../lib/spreadsheetExport';
 import { NUTRIENT_LABELS, type NutrientKey } from '../lib/dailyTotals';
 import { useGoals } from '../hooks/useTracker';
 import { useTheme, useThemeMode, type ThemeMode } from '../theme';
+import { getGeminiApiKey, setGeminiApiKey, clearGeminiApiKey } from '../lib/settings';
 
 function downloadText(text: string, filename: string, type: string) {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -30,15 +31,15 @@ export default function Settings() {
   const [targets, setTargets] = useState<Record<string, number>>({});
   const [goalsSaved, setGoalsSaved] = useState(false);
 
-  useEffect(() => { setKey(localStorage.getItem('geminiApiKey') ?? ''); }, []);
+  useEffect(() => { setKey(getGeminiApiKey() ?? ''); }, []);
   useEffect(() => {
     const t: Record<string, number> = {};
     goals.forEach((g) => { t[g.key] = g.target; });
     setTargets(t);
   }, [goals]);
 
-  const saveKey = () => { localStorage.setItem('geminiApiKey', key.trim()); setKeySaved(true); setTimeout(() => setKeySaved(false), 2000); };
-  const clearKey = () => { localStorage.removeItem('geminiApiKey'); setKey(''); };
+  const saveKey = () => { setGeminiApiKey(key); setKeySaved(true); setTimeout(() => setKeySaved(false), 2000); };
+  const clearKey = () => { clearGeminiApiKey(); setKey(''); };
 
   const onExportJson = async () => downloadText(await exportAll(), 'tracker-backup.json', 'application/json');
   const onImport = async (file: File) => {

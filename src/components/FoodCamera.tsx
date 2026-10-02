@@ -3,15 +3,11 @@ import { ChevronDown, Camera, Sparkles, Plus, Check, AlertTriangle, RotateCcw } 
 import { useSearchableFoods, useLogFood, type SearchFood } from '../hooks/useTracker';
 import type { MealSlot } from '../lib/db';
 import { recognizeFoodPhoto, type FoodVisionResult } from '../lib/foodVision';
-import { expandSearchTerms } from '../lib/searchSynonyms';
+import { searchFoods } from '../lib/searchSynonyms';
+import { MEALS, currentMeal } from '../lib/meals';
 import { useTheme } from '../theme';
 
-const MEALS: { value: MealSlot; label: string }[] = [
-  { value: 'cafe', label: 'Café' }, { value: 'almoco', label: 'Almoço' },
-  { value: 'lanche', label: 'Lanche' }, { value: 'jantar', label: 'Jantar' }, { value: 'ceia', label: 'Ceia' },
-];
 
-const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 const CONFIDENCE_LABEL: Record<string, string> = { baixa: 'confiança baixa', media: 'confiança média', alta: 'confiança alta' };
 
@@ -30,7 +26,7 @@ export default function FoodCamera({ geminiApiKey }: { geminiApiKey?: string }) 
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<SearchFood | null>(null);
   const [grams, setGrams] = useState(100);
-  const [meal, setMeal] = useState<MealSlot>('lanche');
+  const [meal, setMeal] = useState<MealSlot>(currentMeal);
   const [added, setAdded] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -43,12 +39,7 @@ export default function FoodCamera({ geminiApiKey }: { geminiApiKey?: string }) 
   };
   useEffect(() => () => stopCamera(), []);
 
-  const results = useMemo(() => {
-    const q = norm(query.trim());
-    if (!q) return [];
-    const terms = expandSearchTerms(q);
-    return foods.filter((f) => { const n = norm(f.name); return terms.some((t) => n.includes(t)); }).slice(0, 8);
-  }, [foods, query]);
+  const results = useMemo(() => (query.trim() ? searchFoods(foods, query, 8) : []), [foods, query]);
 
   const reset = () => {
     stopCamera();

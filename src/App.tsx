@@ -17,6 +17,8 @@ import { downloadSpreadsheet } from './lib/spreadsheetExport';
 import type { MealOption } from './lib/mealSuggester';
 import type { AnalysisInput } from './lib/nutritionAnalyst';
 import { ThemeProvider, useTheme } from './theme';
+import { getGeminiApiKey } from './lib/settings';
+import { currentMeal } from './lib/meals';
 
 type Tab = 'hoje' | 'registrar' | 'historico' | 'perfil' | 'ajustes';
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -32,7 +34,7 @@ function Today() {
   const data = useDashboardData({ pangastrite: true, maxLactose: 'low' });
   const logFood = useLogFood();
   const { rows } = useTodayEntries();
-  const geminiApiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('geminiApiKey') ?? undefined : undefined;
+  const geminiApiKey = getGeminiApiKey();
 
   const analysisInput: AnalysisInput | undefined = data.plan
     ? { progress: data.progress, kcalConsumed: data.kcalConsumed, kcalTarget: data.plan.calories.target, fastingAdvice: data.fasting.advice as 'ok' | 'cautela' | 'evitar' }
@@ -51,7 +53,7 @@ function Today() {
     [rows],
   );
 
-  const onPick = (s: MealOption) => s.foods.forEach((f) => logFood(f.id, 'almoco', f.grams));
+  const onPick = (s: MealOption) => s.foods.forEach((f) => logFood(f.id, currentMeal(), f.grams));
 
   if (!data.ready || !data.plan) return <div style={{ padding: 24, color: C.slate }}>Carregando…</div>;
   return (

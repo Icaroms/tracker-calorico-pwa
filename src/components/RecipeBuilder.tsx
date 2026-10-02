@@ -3,8 +3,8 @@ import { ChevronDown, Search, Plus, X, Check, Trash2, ChefHat } from 'lucide-rea
 import { useSearchableFoods, useFoodResolver, useRecipes, useSaveRecipe, useDeleteRecipe } from '../hooks/useTracker';
 import { recipeNutrients, recipePer100g, recipeTotalGrams, recipeLactoseLevel, type Recipe } from '../lib/recipes';
 import { useTheme } from '../theme';
+import { searchFoods } from '../lib/searchSynonyms';
 
-const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const LACT_LABEL: Record<string, string> = { none: 'sem lactose', low: 'lactose baixa', moderate: 'lactose moderada', high: 'lactose alta' };
 
 interface Ing { foodId: string; grams: number; name: string; }
@@ -26,8 +26,8 @@ export default function RecipeBuilder() {
   const [done, setDone] = useState('');
 
   const results = useMemo(() => {
-    const q = norm(query.trim());
-    return foods.filter((f) => !f.isRecipe && (!q || norm(f.name).includes(q))).slice(0, 12);
+    // Receita não pode ter outra receita como ingrediente.
+    return searchFoods(foods.filter((f) => !f.isRecipe), query, 12);
   }, [foods, query]);
 
   // prévia: monta uma receita temporária e calcula

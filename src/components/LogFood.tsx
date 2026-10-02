@@ -9,31 +9,23 @@ import NutrientDetail from './NutrientDetail';
 import ExerciseLog from './ExerciseLog';
 import FoodCamera from './FoodCamera';
 
-import { expandSearchTerms } from '../lib/searchSynonyms';
+import { searchFoods } from '../lib/searchSynonyms';
+import { MEALS, currentMeal } from '../lib/meals';
+import { getGeminiApiKey } from '../lib/settings';
 import { useTheme } from '../theme';
 
-const MEALS: { value: MealSlot; label: string }[] = [
-  { value: 'cafe', label: 'Café' }, { value: 'almoco', label: 'Almoço' },
-  { value: 'lanche', label: 'Lanche' }, { value: 'jantar', label: 'Jantar' }, { value: 'ceia', label: 'Ceia' },
-];
-const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 export default function LogFood() {
   const C = useTheme();
   const inputStyle = { background: C.chipBg, color: C.ink };
-  const geminiApiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('geminiApiKey') ?? undefined : undefined;
+  const geminiApiKey = getGeminiApiKey();
   const foods = useSearchableFoods();
   const frequent = useFrequentFoods(8);
   const { rows, totalKcal, remove, update } = useTodayEntries();
   const [query, setQuery] = useState('');
-  const [meal, setMeal] = useState<MealSlot>('lanche');
+  const [meal, setMeal] = useState<MealSlot>(currentMeal);
 
-  const results = useMemo(() => {
-    const q = norm(query.trim());
-    if (!q) return foods.slice(0, 25);
-    const terms = expandSearchTerms(q);
-    return foods.filter((f) => { const n = norm(f.name); return terms.some((t) => n.includes(t)); }).slice(0, 25);
-  }, [foods, query]);
+  const results = useMemo(() => searchFoods(foods, query, 25), [foods, query]);
 
   const quickLog = (id: string, grams: number) => logFood({ foodId: id, meal, grams });
 
