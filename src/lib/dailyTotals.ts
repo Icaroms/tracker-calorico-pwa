@@ -10,7 +10,7 @@ import { foodById, type FoodItem } from './referenceData';
 export const TRACKED_NUTRIENTS = [
   'kcal', 'protein', 'carb', 'fat', 'saturatedFat',
   'fiberSoluble', 'omega3', 'calcium', 'magnesium', 'iron',
-  'potassium', 'selenium', 'vitaminA', 'vitaminC',
+  'potassium', 'sodium', 'selenium', 'vitaminA', 'vitaminC',
   'vitaminB1', 'vitaminB2', 'vitaminB3', 'vitaminB5', 'vitaminB6',
   'vitaminB7', 'vitaminB9', 'vitaminB12', 'vitaminD',
 ] as const;
@@ -24,7 +24,7 @@ export const NUTRIENT_LABELS: Record<NutrientKey, string> = {
   kcal: 'calorias', protein: 'proteína', carb: 'carboidrato', fat: 'gordura total',
   saturatedFat: 'gordura saturada', fiberSoluble: 'fibra solúvel', omega3: 'ômega-3',
   calcium: 'cálcio', magnesium: 'magnésio', iron: 'ferro', potassium: 'potássio',
-  selenium: 'selênio', vitaminA: 'vitamina A', vitaminC: 'vitamina C',
+  sodium: 'sódio', selenium: 'selênio', vitaminA: 'vitamina A', vitaminC: 'vitamina C',
   vitaminB1: 'vitamina B1', vitaminB2: 'vitamina B2', vitaminB3: 'vitamina B3',
   vitaminB5: 'vitamina B5', vitaminB6: 'vitamina B6', vitaminB7: 'vitamina B7',
   vitaminB9: 'vitamina B9', vitaminB12: 'vitamina B12', vitaminD: 'vitamina D',

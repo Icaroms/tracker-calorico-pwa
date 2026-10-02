@@ -23,7 +23,18 @@ export async function seedDefaults(): Promise<void> {
       { key: 'vitaminB12', target: 2.4, unit: 'mcg', direction: 'min' },
       { key: 'vitaminD', target: 15, unit: 'mcg', direction: 'min' },
       { key: 'saturatedFat', target: 20, unit: 'g', direction: 'max' },
+      { key: 'sodium', target: 2000, unit: 'mg', direction: 'max' },
     ]);
+  } else {
+    // Top-up: quem já tinha metas seedadas ANTES do sódio existir nunca
+    // passa pelo bloco acima de novo (count()>0), então nunca ganharia a
+    // meta nova. bulkPut sobrescreveria metas já customizadas pelo usuário
+    // (ex.: se ele mudou a meta de proteína), então em vez de rodar o bulk
+    // de novo, só adiciona as chaves que realmente faltam, sem tocar nas
+    // que já existem.
+    if (!(await db.goals.get('sodium'))) {
+      await db.goals.put({ key: 'sodium', target: 2000, unit: 'mg', direction: 'max' });
+    }
   }
 
   if (!(await db.recipes.get('recipe:almoco-padrao'))) {

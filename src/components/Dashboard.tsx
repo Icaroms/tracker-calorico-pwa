@@ -4,23 +4,19 @@ import type { NutritionPlan } from '../lib/calorieEngine';
 import type { NutrientProgress, NutrientKey } from '../lib/dailyTotals';
 import type { MealOption } from '../lib/mealSuggester';
 import WeightSparkline from './WeightSparkline';
-
-const C = {
-  ink: '#0F2A33', bg: '#EEF3F4', card: '#FFFFFF', teal: '#0E7C7B', green: '#2BA84A',
-  amber: '#E8A33D', coral: '#E0613E', slate: '#6B7E84', line: '#DCE5E6',
-};
+import { useTheme, type Palette } from '../theme';
 
 const LABEL: Partial<Record<NutrientKey, string>> = {
   protein: 'Proteína', carb: 'Carboidrato', fat: 'Gordura total', saturatedFat: 'Gordura saturada',
   fiberSoluble: 'Fibra solúvel', omega3: 'Ômega-3', calcium: 'Cálcio', magnesium: 'Magnésio',
-  iron: 'Ferro', potassium: 'Potássio', selenium: 'Selênio', vitaminA: 'Vit. A', vitaminC: 'Vit. C',
+  iron: 'Ferro', potassium: 'Potássio', sodium: 'Sódio', selenium: 'Selênio', vitaminA: 'Vit. A', vitaminC: 'Vit. C',
   vitaminB1: 'B1', vitaminB2: 'B2', vitaminB3: 'B3', vitaminB5: 'B5', vitaminB6: 'B6',
   vitaminB7: 'B7 (est.)', vitaminB9: 'B9', vitaminB12: 'B12', vitaminD: 'Vit. D',
 };
 
-const MACRO_KEYS: NutrientKey[] = ['protein', 'carb', 'fat', 'saturatedFat'];
+const MACRO_KEYS: NutrientKey[] = ['protein', 'carb', 'fat', 'saturatedFat', 'sodium'];
 
-const statusColor = (p: NutrientProgress) =>
+const statusColor = (p: NutrientProgress, C: Palette) =>
   p.direction === 'max' ? (p.status === 'over' ? C.coral : C.green)
     : p.percent >= 100 ? C.green : p.percent >= 60 ? C.amber : C.coral;
 
@@ -36,9 +32,12 @@ export interface DashboardProps {
   recalcRecommended: boolean;
   onPickSuggestion?: (s: MealOption) => void;
   onExportXlsx?: () => void;
+  /** kcal gasto em exercício hoje — soma à meta base pro anel de calorias. */
+  exerciseKcalBurned?: number;
 }
 
 function BalanceRing({ consumed, target }: { consumed: number; target: number }) {
+  const C = useTheme();
   const pct = Math.min(target > 0 ? consumed / target : 0, 1);
   const r = 88, circ = 2 * Math.PI * r;
   const over = consumed > target;
@@ -67,6 +66,7 @@ function BalanceRing({ consumed, target }: { consumed: number; target: number })
 }
 
 function Bar({ p }: { p: NutrientProgress }) {
+  const C = useTheme();
   if (!p.hasData) {
     return (
       <div>
@@ -80,7 +80,7 @@ function Bar({ p }: { p: NutrientProgress }) {
       </div>
     );
   }
-  const col = statusColor(p);
+  const col = statusColor(p, C);
   const pct = Math.min(p.percent, 100);
   return (
     <div>
@@ -96,7 +96,8 @@ function Bar({ p }: { p: NutrientProgress }) {
 }
 
 export default function Dashboard(props: DashboardProps) {
-  const { plan, kcalConsumed, progress, waterMl, onAddWater, weight, suggestions, fasting, recalcRecommended } = props;
+  const C = useTheme();
+  const { plan, kcalConsumed, progress, waterMl, onAddWater, weight, suggestions, fasting, recalcRecommended, exerciseKcalBurned = 0 } = props;
   const macros = progress.filter((p) => MACRO_KEYS.includes(p.key));
   const micros = progress.filter((p) => !MACRO_KEYS.includes(p.key));
   const protein = progress.find((p) => p.key === 'protein');
@@ -110,7 +111,7 @@ export default function Dashboard(props: DashboardProps) {
         </div>
         <div className="flex gap-2 items-center">
           {fasting.advice !== 'ok' && (
-            <span className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full" style={{ background: '#FBF0DC', color: C.amber }}>
+            <span className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full" style={{ background: C.tintAmber, color: C.amber }}>
               <AlertTriangle size={13} /> Jejum: {fasting.advice}
             </span>
           )}
@@ -123,14 +124,19 @@ export default function Dashboard(props: DashboardProps) {
       </div>
 
       {recalcRecommended && (
-        <div className="flex items-center gap-2 text-sm mb-4 px-4 py-2 rounded-xl" style={{ background: '#E4F1E8', color: C.green }}>
+        <div className="flex items-center gap-2 text-sm mb-4 px-4 py-2 rounded-xl" style={{ background: C.tintGreen, color: C.green }}>
           <RefreshCw size={15} /> Seu peso mudou — vale recalcular o plano.
         </div>
       )}
 
       <div className="rounded-2xl p-5 mb-4 flex flex-col md:flex-row items-center gap-6" style={{ background: C.card }}>
-        <BalanceRing consumed={kcalConsumed} target={plan.calories.target} />
+        <BalanceRing consumed={kcalConsumed} target={plan.calories.target + exerciseKcalBurned} />
         <div className="flex-1 w-full space-y-4">
+          {exerciseKcalBurned > 0 && (
+            <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full w-fit" style={{ background: C.tintGreen, color: C.green }}>
+              <Flame size={12} /> +{exerciseKcalBurned} kcal de exercício hoje — já somado à meta
+            </div>
+          )}
           <div className="flex items-center gap-2 text-sm" style={{ color: C.slate }}>
             <Flame size={15} style={{ color: C.amber }} /> Macronutrientes {protein && <span className="ml-auto text-xs">proteína prioritária</span>}
           </div>
@@ -179,7 +185,7 @@ export default function Dashboard(props: DashboardProps) {
                 <div className="text-xs tabular-nums mb-2" style={{ color: C.slate }}>{s.kcal} kcal</div>
                 <div className="flex flex-wrap gap-1">
                   {s.covers.map((c) => (
-                    <span key={c} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-0.5" style={{ background: '#E4F1E8', color: C.green }}>
+                    <span key={c} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-0.5" style={{ background: C.tintGreen, color: C.green }}>
                       <Check size={9} /> {LABEL[c] ?? c}
                     </span>
                   ))}

@@ -28,7 +28,7 @@ export const SOURCE_META: Record<NutrientSource, SourceMeta> = {
 export const NUTRIENT_UNITS: Record<NutrientKey, string> = {
   kcal: 'kcal', protein: 'g', carb: 'g', fat: 'g', saturatedFat: 'g',
   fiberSoluble: 'g', omega3: 'g', calcium: 'mg', magnesium: 'mg', iron: 'mg',
-  potassium: 'mg', selenium: 'mcg', vitaminA: 'mcg', vitaminC: 'mg',
+  potassium: 'mg', sodium: 'mg', selenium: 'mcg', vitaminA: 'mcg', vitaminC: 'mg',
   vitaminB1: 'mg', vitaminB2: 'mg', vitaminB3: 'mg', vitaminB5: 'mg',
   vitaminB6: 'mg', vitaminB7: 'mcg', vitaminB9: 'mcg', vitaminB12: 'mcg',
   vitaminD: 'mcg',
